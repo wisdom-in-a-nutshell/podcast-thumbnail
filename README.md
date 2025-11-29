@@ -18,8 +18,4 @@ MIT
 
 ## Auto push helper
 
-For rapid checkpoints, run `./scripts/auto_commit_push.sh [branch] [commit message]` (defaults to current branch and a timestamped message). Example cron every 15 minutes:
-
-```
-*/15 * * * * /Users/adi/GitHub/podcast-thumbnail/scripts/auto_commit_push.sh main >> /tmp/podthumb-autopush.log 2>&1
-```
+For rapid checkpoints, run `./scripts/auto_commit_push.sh [branch] [interval_seconds] [commit prefix]` (defaults: current branch, 900s, `"Auto checkpoint"`). It stays running and pushes on the interval until you exit (Ctrl+C). Example: `./scripts/auto_commit_push.sh main 300 "Hackathon checkpoint"`.
