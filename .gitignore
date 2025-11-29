@@ -14,4 +14,3 @@ build/
 *.log
 artifacts/
 manifests/
-manifests/*

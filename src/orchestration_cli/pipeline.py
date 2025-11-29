@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List
 from speaker_identification.frame_sampler import sample_frames as ffmpeg_sample_frames
 from speaker_identification.gemini_identify import identify_speakers
 from headshot_generation import generate_headshot
+from thumbnail_composition import compose_thumbnail as compose_with_gemini
 
 
 def sample_frames(video_path: Path, timestamps: Iterable[float]) -> List[Path]:
@@ -89,5 +90,10 @@ def create_headshots(
 
 
 def compose_thumbnail(background: Path, headshots: Iterable[Path], text: str) -> Path:
-    """Composite headshots and text onto a background and return the output path."""
-    raise NotImplementedError
+    """Composite headshots and text using Gemini image model."""
+
+    return compose_with_gemini(
+        headshot_paths=list(headshots),
+        title_text=text,
+        background_path=background,
+    )

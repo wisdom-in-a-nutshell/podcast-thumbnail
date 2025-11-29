@@ -1,6 +1,6 @@
 # Agent: Headshot Generation
 
-Purpose: take representative frames per speaker and produce clean headshot images (ideally transparent background) using the external headshot model (Gemini Nano Banana Pro / Gemini 3 Pro pipeline). See top-level `AGENTS.md` for overall scope, context, and tooling.
+Purpose: take representative frames per speaker and produce clean headshot images (ideally transparent background) using the external headshot model (Gemini 3 Pro Image Preview / "Nano Banana Pro"). See top-level `AGENTS.md` for overall scope, context, and tooling.
 
 ## Inputs
 - Frame paths per speaker (from speaker_identification manifest).
@@ -11,19 +11,20 @@ Purpose: take representative frames per speaker and produce clean headshot image
 - Updated manifest linking speaker IDs to headshot paths.
 
 ## Approach
-- Preprocess: crop faces from frames (OpenCV/mediapipe) to reduce background; ensure square aspect and sufficient resolution (>=512px on shortest side).
-- Model call: treat the headshot model as an external API/CLI stub. Package multiple reference crops; request one cleaned headshot (PNG, transparent if supported).
-- Validation: basic quality checks (min dimensions, face present, optional transparency); retry with alternate frame if needed.
+- Preprocess: center square-crop references; ensure square aspect and min size; convert to RGB.
+- Model call: Gemini 3 Pro Image Preview via `google-genai`; prompt enforces studio headshot, removes headphones/earbuds/hats, neutral gradient BG; uses up to 14 refs.
+- Caching: local hash cache (model+prompt+refs etc.) saves generated PNGs; CLI supports `--no-cache` to force fresh calls.
+- Validation: raises if no images returned; returns saved paths.
 
 ## Open Questions
-- Exact API contract for the headshot model (endpoint, auth, expected payload/response format)?
-- Desired output size (e.g., 512x512 or 1024x1024) and background (transparent vs solid)?
-- Should we store intermediates and retries, or only the best headshot per speaker?
+- Preferred output size / aspect beyond 1:1? Need alpha background or solid?
+- Whether to keep multiple shots per speaker or just best-one manifest.
+- Should we expose seed/consistency controls if Gemini adds it for image preview?
 
 ## Next Actions
-- Implement `create_headshots(frame_paths)` in `orchestration_cli/pipeline.py` (or a dedicated helper) to call external model; accept a dry-run mode that just copies/crops inputs.
-- Add CLI `podthumb headshots --frames-manifest ... --outdir ... --dry-run`.
-- Write manifest `manifests/headshots.json` linking speaker IDs to headshot paths and source frames.
+- Define `manifests/headshots.json` schema and write it from the CLI (speaker id -> headshot path, ref frames, prompt hash).
+- Optional: add face-detection crop step for messy inputs.
+- Add tests for cache-hit vs miss and env loading.
 
 ## If you take over this agent
 - Read top-level `AGENTS.md` and `speaker_identification/AGENTS.md` to align on manifests.

@@ -59,8 +59,16 @@ def identify_speakers(
         contents=parts,
     )
 
+    text = resp.text or ""
+    text = text.strip()
+    if text.startswith("```"):
+        # strip markdown fences
+        text = text.strip("`")
+        # remove leading language label if present (e.g., json\n)
+        if text.lower().startswith("json\n"):
+            text = text[5:]
     try:
-        data = json.loads(resp.text)
+        data = json.loads(text)
     except Exception as exc:  # noqa: BLE001
         raise GeminiIdentifyError(f"Failed to parse JSON from model: {exc}\nRaw: {resp.text}") from exc
 

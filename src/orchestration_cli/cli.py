@@ -10,8 +10,9 @@ from pathlib import Path
 from headshot_generation import DEFAULT_MODEL as DEFAULT_HEADSHOT_MODEL
 from headshot_generation import DEFAULT_PROMPT as DEFAULT_HEADSHOT_PROMPT
 from headshot_generation.gemini_client import _load_env_key
+from thumbnail_composition.gemini_composer import DEFAULT_MODEL as DEFAULT_COMPOSE_MODEL
 from . import __version__
-from .pipeline import create_headshots, extract_frames_with_gemini
+from .pipeline import compose_thumbnail, create_headshots, extract_frames_with_gemini
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -81,6 +82,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-cache", action="store_true", help="Disable local cache and always call the API"
     )
 
+    compose = sub.add_parser("compose", help="Compose a thumbnail with Gemini")
+    compose.add_argument("--headshots", nargs="+", required=True, type=Path, help="Headshot image paths")
+    compose.add_argument("--text", required=True, help="Title text to render")
+    compose.add_argument("--background", type=Path, default=None, help="Optional background image")
+    compose.add_argument(
+        "--out", type=Path, default=Path("artifacts/thumbnails/thumb.png"), help="Output path"
+    )
+    compose.add_argument(
+        "--model", default=None, help=f"Model override (default: {DEFAULT_COMPOSE_MODEL})"
+    )
+    compose.add_argument("--aspect-ratio", default="16:9", help="Aspect ratio hint (e.g., 16:9 or 1:1)")
+    compose.add_argument("--no-cache", action="store_true", help="Disable local compose cache")
+    compose.add_argument("--api-key", default=None, help="API key override (else GEMINI_API_KEY/GOOGLE_API_KEY)")
+
     return parser
 
 
@@ -129,6 +144,15 @@ def main() -> None:
         )
         for path in outputs:
             print(path)
+        return
+
+    if args.command == "compose":
+        thumb = compose_thumbnail(
+            background=args.background,
+            headshots=args.headshots,
+            text=args.text,
+        )
+        print(thumb)
         return
 
     parser.print_help()

@@ -4,30 +4,30 @@ Purpose: combine headshots, background, and short text into a final thumbnail as
 
 ## Inputs
 - Headshot images per speaker (PNG preferred).
-- Background image/template (user-provided or default).
+- Background image (optional; fallback gradient).
 - Short text (5–6 words) supplied by user.
-- Optional template config (positions, fonts, colors).
+- Optional template config (positions, fonts, colors) — currently not required when using Gemini.
 
 ## Outputs
-- Final thumbnail image (default 1280x720, PNG or JPEG).
-- Optional layered/save metadata (JSON) describing placements.
+- Final thumbnail image (default 1280x720, PNG) generated via Gemini 3 Pro Image Preview.
+- Optional cached file reuse when inputs match.
 
 ## Approach
-- Canvas: default 1280x720; allow override via CLI flags; optionally generate square 1080x1080 variant.
-- Layout: simple templates (1-up, 2-up, 3-up) with headshot positions, drop-shadows, and strokes for contrast.
-- Text: render with Pillow; pick legible font/size, add outline/box for readability; support user font path.
-- Background: user-provided or fallback gradient; ensure contrast with text and faces.
-- Export: save to `artifacts/thumbnails/` with naming convention (`thumb_<title_slug>.png`).
+- Use Gemini 3 Pro Image Preview to compose: prompt enforces two-up layout, neutral gradient, bold readable title, remove headgear, preserve likeness.
+- Inputs passed as reference images (2–4 headshots + optional background) plus text embedded in prompt.
+- Local cache keyed on model+text+aspect+refs (and background) to avoid duplicate calls.
+- Outputs saved under `artifacts/thumbnails/thumb_<hash>.png`.
 
 ## Open Questions
 - Brand guidelines? Fonts/colors/logo lockups to respect?
 - Required format (PNG vs JPEG) and max file size?
 - Need mobile-safe variants (e.g., square 1080x1080)?
+- Should we support a manual (Pillow) path as fallback if Gemini quota is hit?
 
 ## Next Actions
-- Implement `compose_thumbnail(background, headshots, text)` in `orchestration_cli/pipeline.py` (or a dedicated helper) using Pillow.
-- Add CLI `podthumb compose --headshots ... --text "..." --background ... --out thumb.png --template template.json`.
-- Define template JSON structure (positions, sizes, font, colors) under `templates/`.
+- Optional: add manifest schema for thumbnails (inputs, prompt hash, output path).
+- Add CLI flags for square/9:16 variants if needed.
+- Consider a deterministic seed if/when Gemini image preview exposes it.
 
 ## If you take over this agent
 - Read top-level `AGENTS.md` and `headshot_generation/AGENTS.md` to align inputs.
