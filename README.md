@@ -10,7 +10,7 @@ Barebones Python package scaffold for a podcast thumbnail pipeline.
 ## CLI
 
 - `podthumb --version` prints the package version.
-- More commands will be added as frame sampling, headshot generation, and thumbnail composition are implemented.
+- `podthumb sample --video path.mp4` writes speaker manifest to `artifacts/manifests/speakers.json` and frame crops to `artifacts/frames/`.
 
 ## License
 

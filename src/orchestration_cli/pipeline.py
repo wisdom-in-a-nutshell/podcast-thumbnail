@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List
 
 from speaker_identification.frame_sampler import sample_frames as ffmpeg_sample_frames
 from speaker_identification.gemini_identify import identify_speakers
+from speaker_identification.cropper import crop_frame
 from headshot_generation import generate_headshot
 from thumbnail_composition import compose_thumbnail as compose_with_gemini
 
@@ -59,9 +60,23 @@ def extract_frames_with_gemini(
     if video_path:
         frames_dir.mkdir(parents=True, exist_ok=True)
         for speaker in data.get("speakers", []):
-            ts_list = speaker.get("timestamps_s", [])
-            extracted = ffmpeg_sample_frames(video_path, ts_list, frames_dir)
-            speaker["frame_paths"] = [str(p) for p in extracted]
+            frames = speaker.get("frames") or []
+            spk_id = speaker.get("id", "speaker")
+            spk_frame_dir = frames_dir / spk_id
+            spk_crop_dir = spk_frame_dir / "crops"
+            spk_frame_dir.mkdir(parents=True, exist_ok=True)
+            ts_list = [f.get("timestamp_s") for f in frames if isinstance(f, dict) and "timestamp_s" in f]
+            extracted = ffmpeg_sample_frames(video_path, ts_list, spk_frame_dir)
+            for f, path in zip(frames, extracted):
+                f["frame_path"] = str(path)
+                bbox = f.get("bbox")
+                if bbox:
+                    try:
+                        crop_path = crop_frame(path, bbox, spk_crop_dir)
+                        f["crop_path"] = str(crop_path)
+                    except Exception:
+                        # leave crop_path absent if cropping fails
+                        pass
     else:
         # No local video -> we cannot extract frames; leave frame_paths absent.
         data["note"] = "frame extraction skipped (no local video provided)"
@@ -112,6 +127,7 @@ def compose_thumbnail(
     aspect_ratio: str = "16:9",
     use_cache: bool = True,
     output_path: Path | None = None,
+    highlight_words: list[str] | None = None,
 ) -> Path:
     """Composite headshots and text using Gemini image model."""
 
@@ -125,4 +141,5 @@ def compose_thumbnail(
         aspect_ratio=aspect_ratio,
         use_cache=use_cache,
         output_path=output_path,
+        highlight_words=highlight_words,
     )

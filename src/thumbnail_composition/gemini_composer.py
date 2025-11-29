@@ -26,9 +26,11 @@ DEFAULT_MODEL = os.environ.get("PODTHUMB_COMPOSE_MODEL", "gemini-3-pro-image-pre
 TEMPLATES = {
     "diary_ceo": (
         "Two speakers side by side, slight inward head tilt, warm/approachable expressions."
-        " Large close-up framing: faces should occupy most of the left/right thirds; crop at shoulders/chest"
-        " similar to Diary of a CEO thumbnails. Dark/black backdrop with soft vignette."
-        " Bold white title centered at top; pick 1–2 key words to highlight in red box with white text."
+        " Symmetric sizing: both faces the same apparent size, eyes aligned on the same horizontal line,"
+        " occupying most of the left/right thirds (each face fills ~40% of width), cropped at shoulders/chest, small outer margin."
+        " Dark/black vignette backdrop. Title in a compact two-line block centered near top-middle; maximum width 60%"
+        " of the frame. Bold white text; highlight 1–2 key words with a red box and white text."
+        " Keep minimal empty space under the title; keep clear padding above and below the text block; avoid large blank gaps." 
         " No 'NEW' badge. No headphones/earbuds/hats."
     ),
     "clean_two_up": (
@@ -55,9 +57,10 @@ def _cache_key(
     background: Path | None,
     template: str,
     style_reference: Path | None,
+    highlight_words: tuple[str, ...],
 ) -> str:
     hasher = hashlib.sha256()
-    for part in (model, title_text, aspect_ratio, template):
+    for part in (model, title_text, aspect_ratio, template, "|".join(highlight_words)):
         hasher.update(part.encode("utf-8"))
 
     for path in headshots:
@@ -105,6 +108,7 @@ def compose_thumbnail(
     use_cache: bool = True,
     template: str = "diary_ceo",
     style_reference: Path | None = None,
+    highlight_words: Sequence[str] | None = None,
 ) -> Path:
     """Generate a composed thumbnail via Gemini using headshots and a title.
 
@@ -138,6 +142,7 @@ def compose_thumbnail(
         background=background_path,
         template=template,
         style_reference=style_reference,
+        highlight_words=tuple(highlight_words or ()),
     )
 
     final_path = out_path.with_name(f"{out_path.stem}_{cache_hash[:10]}{out_path.suffix or '.png'}")
@@ -151,15 +156,31 @@ def compose_thumbnail(
         images.append(_load_image(Path(style_reference)))
 
     client = genai.Client(api_key=api_key)
+    safety = [
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HARASSMENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+        types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold=types.HarmBlockThreshold.BLOCK_NONE),
+    ]
+
     config = types.GenerateContentConfig(
         response_modalities=["IMAGE"],
         image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
+        safety_settings=safety,
     )
 
     style_prompt = TEMPLATES.get(template, "")
+    highlight_prompt = ""
+    if highlight_words:
+        highlight_prompt = (
+            " Highlight the following words/phrases with a red box and white text: "
+            + ", ".join(f'"{w}"' for w in highlight_words)
+            + "."
+        )
+
     prompt = (
         f"{DEFAULT_PROMPT} {style_prompt} Title text to render: \"{title_text}\"."
-        " Place the title cleanly and ensure both people remain clear and unoccluded."
+        f"{highlight_prompt} Place the title cleanly and ensure both people remain clear and unoccluded."
     )
 
     response = client.models.generate_content(

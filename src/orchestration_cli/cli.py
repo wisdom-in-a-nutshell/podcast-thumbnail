@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     sample.add_argument(
         "--out-manifest",
         type=Path,
-        default=Path("manifests/speakers.json"),
+        default=Path("artifacts/manifests/speakers.json"),
         help="Where to write the speakers manifest",
     )
     sample.add_argument(
@@ -97,6 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
     compose.add_argument("--api-key", default=None, help="API key override (else GEMINI_API_KEY/GOOGLE_API_KEY)")
     compose.add_argument("--template", default="diary_ceo", help="Template style name")
     compose.add_argument("--style-ref", type=Path, default=None, help="Optional style reference image")
+    compose.add_argument(
+        "--highlight", nargs="+", default=None, help="Words/phrases to force highlight in red boxes"
+    )
 
     return parser
 
@@ -155,6 +158,8 @@ def main() -> None:
             text=args.text,
             template=args.template,
             style_reference=args.style_ref,
+            highlight_words=args.highlight,
+            use_cache=not args.no_cache,
         )
         print(thumb)
         return
