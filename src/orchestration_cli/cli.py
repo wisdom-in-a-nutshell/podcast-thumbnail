@@ -48,7 +48,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory to store extracted frames",
     )
     sample.add_argument("--dry-run", action="store_true", help="Print prompt; do not call Gemini")
-    sample.add_argument("--force", action="store_true", help="Ignore existing manifest cache and re-run")
 
     headshots = sub.add_parser("headshots", help="Generate cleaned headshots from reference frames")
     headshots.add_argument("--frames", nargs="+", required=True, type=Path, help="Reference frame paths")
