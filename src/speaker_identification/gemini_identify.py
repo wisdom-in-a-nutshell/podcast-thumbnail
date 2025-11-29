@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from google import genai
+from google.genai import types
 
 from .prompt import build_prompt
 
@@ -26,6 +27,8 @@ def identify_speakers(
     timestamps_per_speaker: int = 4,
     api_key: str | None = None,
     dry_run: bool = False,
+    use_explicit_cache: bool = True,
+    cache_ttl_seconds: int = 86400,
 ) -> Dict[str, Any]:
     """Call Gemini to detect speakers and return structured JSON."""
 
@@ -46,28 +49,54 @@ def identify_speakers(
     client = genai.Client(api_key=api_key)
 
     parts = []
-    if video_path:
-        file_ref = client.files.upload(file=str(video_path))
-        # Poll until ACTIVE
-        for _ in range(60):
-            status = client.files.get(name=file_ref.name)
-            if getattr(status, "state", "").upper() == "ACTIVE":
-                parts.append(status)
-                break
-            import time
+    cached_name = None
 
-            time.sleep(1)
+    if video_path:
+        size_bytes = video_path.stat().st_size
+        if size_bytes <= 20 * 1024 * 1024:
+            # Small file: use inline_data to avoid File API auth limits
+            data = video_path.read_bytes()
+            parts.append(types.Part(inline_data=types.Blob(data=data, mime_type="video/mp4")))
         else:
-            raise GeminiIdentifyError(f"File {file_ref.name} not ACTIVE after wait")
+            file_ref = client.files.upload(file=str(video_path))
+            # Poll until ACTIVE
+            for _ in range(60):
+                status = client.files.get(name=file_ref.name)
+                if getattr(status, "state", "").upper() == "ACTIVE":
+                    parts.append(status)
+                    break
+                import time
+
+                time.sleep(1)
+            else:
+                raise GeminiIdentifyError(f"File {file_ref.name} not ACTIVE after wait")
+
+            if use_explicit_cache:
+                try:
+                    cache = client.caches.create(
+                        model=model,
+                        config=types.CreateCachedContentConfig(
+                            contents=[status],
+                            ttl=f"{cache_ttl_seconds}s",
+                        ),
+                    )
+                    cached_name = cache.name
+                except Exception:
+                    cached_name = None
     elif video_url:
         parts.append({"file_data": {"file_uri": video_url}})
 
     parts.append(prompt)
 
-    resp = client.models.generate_content(
-        model=model,
-        contents=parts,
-    )
+    generate_kwargs: Dict[str, Any] = {
+        "model": model,
+        "contents": parts,
+    }
+
+    if cached_name:
+        generate_kwargs["config"] = types.GenerateContentConfig(cached_content=cached_name)
+
+    resp = client.models.generate_content(**generate_kwargs)
 
     text = resp.text or ""
     text = text.strip()

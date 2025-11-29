@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -29,6 +30,17 @@ def extract_frames_with_gemini(
     api_key: str | None = None,
 ) -> Dict[str, Any] | None:
     """Run Gemini to get speaker timestamps, then extract frames with ffmpeg."""
+
+    TTL_SECONDS = 24 * 60 * 60  # 1 day
+
+    # Local manifest cache: if fresh, return without calling Gemini
+    if not dry_run and out_manifest.exists():
+        age = time.time() - out_manifest.stat().st_mtime
+        if age <= TTL_SECONDS:
+            try:
+                return json.loads(out_manifest.read_text())
+            except Exception:
+                pass  # fall through to recompute if cache unreadable
 
     data = identify_speakers(
         video_path=video_path,
@@ -89,12 +101,28 @@ def create_headshots(
     )
 
 
-def compose_thumbnail(background: Path, headshots: Iterable[Path], text: str) -> Path:
+def compose_thumbnail(
+    background: Path | None,
+    headshots: Iterable[Path],
+    text: str,
+    *,
+    template: str = "diary_ceo",
+    style_reference: Path | None = None,
+    model: str | None = None,
+    aspect_ratio: str = "16:9",
+    use_cache: bool = True,
+    output_path: Path | None = None,
+) -> Path:
     """Composite headshots and text using Gemini image model."""
 
     return compose_with_gemini(
         headshot_paths=list(headshots),
         title_text=text,
         background_path=background,
-        template="diary_ceo",
+        template=template,
+        style_reference=style_reference,
+        model=model,
+        aspect_ratio=aspect_ratio,
+        use_cache=use_cache,
+        output_path=output_path,
     )

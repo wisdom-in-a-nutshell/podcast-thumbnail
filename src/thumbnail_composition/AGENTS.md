@@ -13,9 +13,10 @@ Purpose: combine headshots, background, and short text into a final thumbnail as
 - Optional cached file reuse when inputs match.
 
 ## Approach
-- Use Gemini 3 Pro Image Preview to compose: prompt enforces two-up layout, neutral gradient, bold readable title, remove headgear, preserve likeness.
-- Inputs passed as reference images (2–4 headshots + optional background) plus text embedded in prompt.
-- Local cache keyed on model+text+aspect+refs (and background) to avoid duplicate calls.
+- Use Gemini 3 Pro Image Preview to compose: prompt enforces two-up layout, removes headgear, preserves likeness. Templates provide style cues.
+- Inputs passed as reference images (2–4 headshots + optional background + optional style reference) plus text embedded in prompt.
+- Templates: `diary_ceo` (dark backdrop, slight inward head tilt, bold white text with red highlight blocks, no "NEW" tag), `clean_two_up` (neutral gradient, bold sans title).
+- Local cache keyed on model+text+aspect+refs+template+(background/style ref) to avoid duplicate calls.
 - Outputs saved under `artifacts/thumbnails/thumb_<hash>.png`.
 
 ## Open Questions

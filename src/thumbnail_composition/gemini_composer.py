@@ -25,9 +25,11 @@ DEFAULT_MODEL = os.environ.get("PODTHUMB_COMPOSE_MODEL", "gemini-3-pro-image-pre
 
 TEMPLATES = {
     "diary_ceo": (
-        "Two speakers side by side, slight head tilt toward center, warm expressions."
-        " Dark/black backdrop with soft vignette. Bold white title centered; pick 1–2 key words to highlight"
-        " in red boxes with white text. No 'NEW' badge. No headphones/earbuds/hats."
+        "Two speakers side by side, slight inward head tilt, warm/approachable expressions."
+        " Large close-up framing: faces should occupy most of the left/right thirds; crop at shoulders/chest"
+        " similar to Diary of a CEO thumbnails. Dark/black backdrop with soft vignette."
+        " Bold white title centered at top; pick 1–2 key words to highlight in red box with white text."
+        " No 'NEW' badge. No headphones/earbuds/hats."
     ),
     "clean_two_up": (
         "Two-up interview layout, neutral gradient background, evenly lit faces, bold sans title with high contrast."
@@ -37,7 +39,7 @@ TEMPLATES = {
 DEFAULT_PROMPT = (
     "You are designing a YouTube thumbnail. Keep the provided people looking like their references."
     " Place them side by side, shoulders-up, facing camera, slight inward tilt, warm approachable expression,"
-    " remove headphones/earbuds/hats."
+    " remove headphones/earbuds/hats. Faces should be large and fill the left/right thirds; crop at shoulders/chest."
     " Use a clean background appropriate to the chosen template. Add the exact title text provided; choose 1–2"
     " important words to highlight with a red box and white text; ensure legibility on mobile."
     " No extra stickers, no watermarks, no logos. 16:9 composition, polished and professional."
