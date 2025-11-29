@@ -25,7 +25,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
 
     sample = sub.add_parser("sample", help="Identify speakers via Gemini and extract frames")
-    sample.add_argument("--video", required=True, type=Path, help="Path to local video file")
+    sample.add_argument("--video", type=Path, help="Path to local video file")
+    sample.add_argument("--url", help="Public video URL (YouTube or direct)")
     sample.add_argument("--model", default="gemini-3-pro-preview", help="Gemini model")
     sample.add_argument(
         "--timestamps-per-speaker",
@@ -95,8 +96,13 @@ def main() -> None:
         return
 
     if args.command == "sample":
+        if not args.video and not args.url:
+            parser.error("--video or --url is required for 'sample'")
+        if args.video and args.url:
+            parser.error("Use only one of --video or --url")
         result = extract_frames_with_gemini(
             video_path=args.video,
+            video_url=args.url,
             model=args.model,
             out_manifest=args.out_manifest,
             frames_dir=args.frames_dir,

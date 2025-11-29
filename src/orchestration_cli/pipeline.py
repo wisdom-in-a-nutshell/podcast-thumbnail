@@ -18,7 +18,8 @@ def sample_frames(video_path: Path, timestamps: Iterable[float]) -> List[Path]:
 
 
 def extract_frames_with_gemini(
-    video_path: Path,
+    video_path: Path | None,
+    video_url: str | None,
     model: str,
     out_manifest: Path,
     frames_dir: Path,
@@ -30,6 +31,7 @@ def extract_frames_with_gemini(
 
     data = identify_speakers(
         video_path=video_path,
+        video_url=video_url,
         model=model,
         timestamps_per_speaker=timestamps_per_speaker,
         api_key=api_key,
@@ -39,13 +41,17 @@ def extract_frames_with_gemini(
     if dry_run:
         return data
 
-    frames_dir.mkdir(parents=True, exist_ok=True)
     out_manifest.parent.mkdir(parents=True, exist_ok=True)
 
-    for speaker in data.get("speakers", []):
-        ts_list = speaker.get("timestamps_s", [])
-        extracted = ffmpeg_sample_frames(video_path, ts_list, frames_dir)
-        speaker["frame_paths"] = [str(p) for p in extracted]
+    if video_path:
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        for speaker in data.get("speakers", []):
+            ts_list = speaker.get("timestamps_s", [])
+            extracted = ffmpeg_sample_frames(video_path, ts_list, frames_dir)
+            speaker["frame_paths"] = [str(p) for p in extracted]
+    else:
+        # No local video -> we cannot extract frames; leave frame_paths absent.
+        data["note"] = "frame extraction skipped (no local video provided)"
 
     out_manifest.write_text(json.dumps(data, indent=2))
     return data

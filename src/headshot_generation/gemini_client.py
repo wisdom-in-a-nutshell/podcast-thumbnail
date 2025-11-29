@@ -23,6 +23,7 @@ DEFAULT_MODEL = os.environ.get("PODTHUMB_HEADSHOT_MODEL", "gemini-3-pro-image-pr
 DEFAULT_PROMPT = (
     "Cinematic studio headshot of the same person in the reference photos."
     " Shoulders-up, centered, eyes to camera, relaxed confident expression."
+    " Remove headphones, earbuds, hats, or other headgear; show natural hair and ears."
     " Even soft key + fill lighting, natural skin tones, high detail, DSLR look."
     " Neutral light-gray gradient background, no text or logos, no watermarks,"
     " remove clutter and artifacts."
