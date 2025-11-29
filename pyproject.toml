@@ -19,8 +19,5 @@ dev = [
     "ruff>=0.7",
 ]
 
-[project.scripts]
-podthumb = "orchestration_cli.cli:main"
-
 [tool.setuptools.packages.find]
 where = ["src"]

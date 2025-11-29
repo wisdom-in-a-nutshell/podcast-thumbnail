@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import hashlib
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -27,6 +28,61 @@ DEFAULT_PROMPT = (
     " remove clutter and artifacts."
 )
 MAX_REFERENCE_IMAGES = 14
+
+
+def _load_env_key() -> None:
+    """Best-effort load GEMINI_API_KEY/GOOGLE_API_KEY from .env files.
+
+    Checks (in order): existing environment, local project .env, cwd .env,
+    the sibling "win" repo .env if present, and HOME/.env. Values already in
+    the environment are never overwritten.
+    """
+
+    candidates = [
+        Path("/Users/adi/GitHub/win/.env"),
+        Path(__file__).resolve().parents[2] / ".env",  # this repo root
+        Path.cwd() / ".env",
+        Path.home() / ".env",
+    ]
+
+    for path in candidates:
+        if not path.exists():
+            continue
+        for line in path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key in os.environ:
+                continue
+            os.environ[key] = value
+
+
+def _cache_key(
+    *,
+    model: str,
+    prompt: str,
+    aspect_ratio: str,
+    image_size: str,
+    num_images: int,
+    crop_square: bool,
+    reference_paths: Sequence[Path],
+) -> str:
+    """Create a stable hash for the input set to drive local caching."""
+
+    hasher = hashlib.sha256()
+    for part in (model, prompt, aspect_ratio, image_size, str(num_images), str(crop_square)):
+        hasher.update(part.encode("utf-8"))
+
+    for ref in reference_paths:
+        path = Path(ref)
+        hasher.update(path.name.encode("utf-8"))
+        try:
+            hasher.update(path.read_bytes())
+        except FileNotFoundError:
+            continue
+
+    return hasher.hexdigest()
 
 
 def _square_center_crop(image: Image.Image, *, min_side: int = 512) -> Image.Image:
@@ -88,6 +144,7 @@ def generate_headshot(
     num_images: int = 1,
     api_key: str | None = None,
     crop_square: bool = True,
+    use_cache: bool = True,
 ) -> List[Path]:
     """Generate a cleaned headshot using Gemini 3 Pro Image Preview.
 
@@ -115,12 +172,36 @@ def generate_headshot(
     if len(refs) > MAX_REFERENCE_IMAGES:
         refs = refs[:MAX_REFERENCE_IMAGES]
 
+    _load_env_key()
+
     api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise RuntimeError("Set GEMINI_API_KEY (or GOOGLE_API_KEY) before generating headshots.")
 
     out_dir = Path(output_dir) if output_dir else Path("artifacts/headshots")
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    cache_hash = _cache_key(
+        model=model or DEFAULT_MODEL,
+        prompt=prompt or DEFAULT_PROMPT,
+        aspect_ratio=aspect_ratio,
+        image_size=image_size,
+        num_images=num_images,
+        crop_square=crop_square,
+        reference_paths=refs,
+    )
+
+    base_stem = Path(output_name).stem if output_name else f"{Path(refs[0]).stem}_headshot"
+    base_suffix = (Path(output_name).suffix or ".png") if output_name else ".png"
+
+    def _fname(idx: int) -> str:
+        idx_part = f"_{idx}" if num_images > 1 else ""
+        return f"{base_stem}_{cache_hash[:10]}{idx_part}{base_suffix}"
+
+    candidate_paths = [out_dir / _fname(i) for i in range(1, max(1, num_images) + 1)]
+
+    if use_cache and all(p.exists() for p in candidate_paths):
+        return candidate_paths
 
     prepared_images = [_prepare_reference(Path(path), crop_square=crop_square) for path in refs]
 
@@ -129,8 +210,6 @@ def generate_headshot(
         response_modalities=["IMAGE"],
         image_config=types.ImageConfig(
             aspect_ratio=aspect_ratio,
-            image_size=image_size,
-            number_of_images=num_images,
         ),
     )
 
@@ -144,15 +223,9 @@ def generate_headshot(
     if not images:
         raise RuntimeError("Headshot model returned no images.")
 
-    base_stem = Path(output_name).stem if output_name else f"{Path(refs[0]).stem}_headshot"
-    base_suffix = (Path(output_name).suffix or ".png") if output_name else ".png"
-
     paths: List[Path] = []
     for idx, image in enumerate(images, start=1):
-        if num_images > 1:
-            filename = f"{base_stem}_{idx}{base_suffix or '.png'}"
-        else:
-            filename = f"{base_stem}{base_suffix or '.png'}"
+        filename = _fname(idx)
         out_path = out_dir / filename
         image.save(out_path)
         paths.append(out_path)

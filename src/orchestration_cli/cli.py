@@ -9,6 +9,7 @@ from pathlib import Path
 
 from headshot_generation import DEFAULT_MODEL as DEFAULT_HEADSHOT_MODEL
 from headshot_generation import DEFAULT_PROMPT as DEFAULT_HEADSHOT_PROMPT
+from headshot_generation.gemini_client import _load_env_key
 from . import __version__
 from .pipeline import create_headshots, extract_frames_with_gemini
 
@@ -75,21 +76,16 @@ def build_parser() -> argparse.ArgumentParser:
     headshots.add_argument(
         "--api-key", default=None, help="API key override (else GEMINI_API_KEY/GOOGLE_API_KEY)"
     )
+    headshots.add_argument(
+        "--no-cache", action="store_true", help="Disable local cache and always call the API"
+    )
 
     return parser
 
 
 def main() -> None:
     # Load .env if present (ignored if values already in env)
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            if key and key not in os.environ:
-                os.environ[key] = value
+    _load_env_key()
 
     parser = build_parser()
     args = parser.parse_args()
@@ -123,6 +119,7 @@ def main() -> None:
             api_key=args.api_key,
             crop_square=not args.no_crop,
             output_name=args.output_name,
+            use_cache=not args.no_cache,
         )
         for path in outputs:
             print(path)

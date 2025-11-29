@@ -63,6 +63,7 @@ def create_headshots(
     api_key: str | None = None,
     crop_square: bool = True,
     output_name: str | None = None,
+    use_cache: bool = True,
 ) -> List[Path]:
     """Send reference frames to Gemini and return saved headshot paths."""
 
@@ -77,6 +78,7 @@ def create_headshots(
         api_key=api_key,
         crop_square=crop_square,
         output_name=output_name,
+        use_cache=use_cache,
     )
 
 
