@@ -180,7 +180,6 @@ def compose_thumbnail(
     aspect_ratio: str = "16:9",
     use_cache: bool = True,
     output_path: Path | None = None,
-    highlight_words: list[str] | None = None,
     jitter: bool = False,
 ) -> Path:
     """Composite headshots and text using Gemini image model."""
@@ -195,7 +194,6 @@ def compose_thumbnail(
         aspect_ratio=aspect_ratio,
         use_cache=use_cache,
         output_path=output_path,
-        highlight_words=highlight_words,
         jitter=jitter,
     )
 
