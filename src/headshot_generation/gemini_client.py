@@ -146,6 +146,7 @@ def generate_headshot(
     api_key: str | None = None,
     crop_square: bool = True,
     use_cache: bool = True,
+    timeout_s: int = 300,
 ) -> List[Path]:
     """Generate a cleaned headshot using Gemini 3 Pro Image Preview.
 
@@ -206,7 +207,7 @@ def generate_headshot(
 
     prepared_images = [_prepare_reference(Path(path), crop_square=crop_square) for path in refs]
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(api_key=api_key, http_options={"timeout": timeout_s})
     config = types.GenerateContentConfig(
         response_modalities=["IMAGE"],
         image_config=types.ImageConfig(
@@ -219,6 +220,11 @@ def generate_headshot(
         contents=[prompt or DEFAULT_PROMPT, *prepared_images],
         config=config,
     )
+
+    # Detect blocking early
+    if getattr(response, "prompt_feedback", None) and getattr(response.prompt_feedback, "block_reason", None):
+        reason = response.prompt_feedback.block_reason
+        raise RuntimeError(f"Headshot request was blocked by the model: {reason}")
 
     images = _extract_images(response)
     if not images:

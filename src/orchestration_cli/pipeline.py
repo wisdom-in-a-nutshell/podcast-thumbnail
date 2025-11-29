@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -19,6 +20,28 @@ def sample_frames(video_path: Path, timestamps: Iterable[float]) -> List[Path]:
     """Extract frames at given timestamps using ffmpeg."""
 
     return ffmpeg_sample_frames(video_path, timestamps, out_dir=Path("artifacts/frames"))
+
+
+def _get_duration_seconds(video_path: Path) -> float | None:
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return None
 
 
 def extract_frames_with_gemini(
@@ -60,6 +83,7 @@ def extract_frames_with_gemini(
 
     if video_path:
         frames_dir.mkdir(parents=True, exist_ok=True)
+        duration = _get_duration_seconds(video_path)
         for speaker in data.get("speakers", []):
             frames = speaker.get("frames") or []
             spk_id = speaker.get("id", "speaker")
@@ -67,9 +91,36 @@ def extract_frames_with_gemini(
             spk_frame_dir = spk_root / "frames"
             spk_crop_dir = spk_root / "crops"
             spk_frame_dir.mkdir(parents=True, exist_ok=True)
-            ts_list = [f.get("timestamp_s") for f in frames if isinstance(f, dict) and "timestamp_s" in f]
+            # Filter timestamps within duration and pad to requested count
+            valid_frames: list[Dict[str, Any]] = []
+            for f in frames:
+                ts = f.get("timestamp_s")
+                if ts is None:
+                    continue
+                if duration is not None and ts > duration - 0.5:
+                    continue
+                valid_frames.append(f)
+
+            needed = max(0, timestamps_per_speaker - len(valid_frames))
+            if needed and duration:
+                step = duration / (timestamps_per_speaker + 1)
+                for i in range(timestamps_per_speaker):
+                    if len(valid_frames) >= timestamps_per_speaker:
+                        break
+                    ts = step * (i + 1)
+                    valid_frames.append(
+                        {
+                            "timestamp_s": ts,
+                            "bbox": {"x1": 0.2, "y1": 0.0, "x2": 0.8, "y2": 1.0},
+                        }
+                    )
+
+            valid_frames = valid_frames[:timestamps_per_speaker]
+            speaker["frames"] = valid_frames
+
+            ts_list = [f.get("timestamp_s") for f in valid_frames if isinstance(f, dict) and "timestamp_s" in f]
             extracted = ffmpeg_sample_frames(video_path, ts_list, spk_frame_dir)
-            for f, path in zip(frames, extracted):
+            for f, path in zip(valid_frames, extracted):
                 f["frame_path"] = str(path)
                 bbox = f.get("bbox")
                 if bbox:
@@ -193,10 +244,10 @@ def run_end_to_end(
         spk_id = speaker.get("id", "speaker")
         frames = speaker.get("frames") or []
         print(f"[headshots] speaker {spk_id}: {len(frames)} frame entries")
-        # prefer crops, fall back to frames; max 4
+        # prefer crops, fall back to frames; max 3
         refs: list[Path] = []
         for f in frames:
-            if len(refs) >= 4:
+            if len(refs) >= 3:
                 break
             if f.get("crop_path"):
                 refs.append(Path(f["crop_path"]))

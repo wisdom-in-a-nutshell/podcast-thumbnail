@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     sample.add_argument("--dry-run", action="store_true", help="Print prompt; do not call Gemini")
 
     headshots = sub.add_parser("headshots", help="Generate cleaned headshots from reference frames")
-    headshots.add_argument("--frames", nargs="+", required=True, type=Path, help="Reference frame paths")
+    headshots.add_argument("--frames-dir", required=True, type=Path, help="Folder containing reference frames")
     headshots.add_argument(
         "--outdir", type=Path, default=Path("artifacts/headshots"), help="Directory for outputs"
     )
@@ -171,8 +171,22 @@ def main() -> None:
         return
 
     if args.command == "headshots":
+        frames_dir: Path = args.frames_dir
+        if not frames_dir.exists() or not frames_dir.is_dir():
+            parser.error(f"--frames-dir does not exist or is not a directory: {frames_dir}")
+
+        frame_paths = sorted(
+            [
+                p
+                for p in frames_dir.iterdir()
+                if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
+            ]
+        )
+        if not frame_paths:
+            parser.error(f"No images found in {frames_dir}")
+
         outputs = create_headshots(
-            frame_paths=args.frames,
+            frame_paths=frame_paths,
             output_dir=args.outdir,
             prompt=args.prompt or DEFAULT_HEADSHOT_PROMPT,
             model=args.model or DEFAULT_HEADSHOT_MODEL,
