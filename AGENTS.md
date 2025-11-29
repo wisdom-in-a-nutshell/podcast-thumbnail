@@ -7,9 +7,9 @@ This repo builds a simple pipeline to produce podcast thumbnails from an edited 
 
 ## Current State
 - Python scaffold in `src/` with subpackages for `orchestration_cli`, `speaker_identification`, `headshot_generation`, `thumbnail_composition`. CLI entry is `python -m orchestration_cli.cli`.
-- Implemented headshot generation via Gemini 3 Pro Image Preview (Nano Banana Pro), with auto env loading, prompt to remove headgear, and local caching by hash of refs/prompt/model.
-- Implemented thumbnail composition via Gemini 3 Pro Image Preview: takes 2+ headshots + title text, optional background, generates 16:9 thumbnail; local cache keyed by inputs.
-- Frame sampling exists via ffmpeg helper; speaker identification helper present; manifests still minimal.
+- Speaker identification: uses Gemini 3 Pro (video) to return speakers, roles (host/guest), notes, confidence, per-frame bboxes; saves manifest to `artifacts/manifests/speakers.json`. Frames and crops are stored per speaker: `artifacts/frames/<speaker_id>/frames/*.jpg` and `.../crops/*.jpg` (full-height crops with padded width). Local manifest cache: 24h.
+- Headshot generation: Gemini 3 Pro Image Preview with local hash cache; prompt removes headgear; square ref crop; outputs cached by hash.
+- Thumbnail composition (via Gemini image) exists with caching; templates optional.
 - MCP: Gemini docs MCP installed (disabled by default), Context7 available; use `codex-gemini` alias to enable both + web search.
 
 ## Per-Agent Guides (paths)
@@ -30,8 +30,8 @@ This repo builds a simple pipeline to produce podcast thumbnails from an edited 
 1) (Done) Frame sampling helper exists (ffmpeg).
 2) (Done) Headshot gen: Gemini 3 Pro Image Preview; prompt removes headgear; square-crops refs; cached outputs; CLI `headshots` subcommand.
 3) (Done) Thumbnail composition: Gemini 3 Pro Image Preview; uses headshots + text (and optional background); cached outputs; CLI `compose` subcommand.
-4) Speaker ID: stub exists; integrate manifests so `sample → headshots → compose` can chain cleanly.
-5) Config: auto-loads `.env` (repo, win/.env, cwd, home). Consider manifest schemas and `run` pipeline command next.
+4) Speaker ID: now returns host/guest, bboxes, per-speaker frames/crops, manifest at `artifacts/manifests/speakers.json`; chaining to headshots/compose next.
+5) Config: auto-loads `.env` (repo, win/.env, cwd, home). Consider a `run` pipeline command once headshot/compose manifest schema is finalized.
 
 ## Open Questions for User
 - Will you supply exact timestamps per speaker, or should we auto-sample at fixed intervals and cluster faces locally?

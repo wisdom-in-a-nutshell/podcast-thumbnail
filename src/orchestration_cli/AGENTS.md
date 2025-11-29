@@ -17,6 +17,7 @@ Purpose: provide a simple CLI that chains identification → headshots → compo
 - Env loading: auto-load `.env` from repo/win/.env/cwd/home before commands; flags allow API key override.
 - Caching: headshots and compose both cache locally by hashed inputs to avoid repeat calls.
 - Outputs: headshots to `artifacts/headshots/`, thumbnails to `artifacts/thumbnails/`; manifests still TBD.
+- Prompt signature is included in the compose cache hash to ensure text/layout changes invalidate cache.
 
 ## Open Questions
 - Should we add a `run` command to chain sample→headshots→compose with manifests?
