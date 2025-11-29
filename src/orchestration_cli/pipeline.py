@@ -299,3 +299,108 @@ def run_end_to_end(
     summary["thumbnail"] = str(thumb_path)
     summary["steps"].append("compose")
     return summary
+
+
+def run() -> None:
+    """Interactive pipeline: prompts for video path and title text."""
+
+    # Prompt for video file path
+    print("\n=== Podcast Thumbnail Pipeline ===\n")
+    video_input = input("Enter video file path: ").strip()
+    if not video_input:
+        print("No video path provided. Exiting.")
+        return
+
+    video_path = Path(video_input).expanduser().resolve()
+    if not video_path.exists():
+        print(f"Error: Video file not found: {video_path}")
+        return
+
+    print(f"\n[info] Video: {video_path}")
+
+    # Fixed artifact paths
+    manifest_path = Path("artifacts/manifests/speakers.json")
+    frames_dir = Path("artifacts/frames")
+    headshots_dir = Path("artifacts/headshots")
+
+    # Step 1: Sample frames and identify speakers
+    print("\n[step 1/3] Sampling frames and identifying speakers...")
+    sample_result = extract_frames_with_gemini(
+        video_path=video_path,
+        video_url=None,
+        model="gemini-3-pro-preview",
+        out_manifest=manifest_path,
+        frames_dir=frames_dir,
+        timestamps_per_speaker=4,
+        dry_run=False,
+    )
+    print(f"[sample] Manifest saved to {manifest_path}")
+
+    # Step 2: Generate headshots per speaker
+    print("\n[step 2/3] Generating headshots...")
+    headshot_paths: list[Path] = []
+    for speaker in sample_result.get("speakers", []):
+        spk_id = speaker.get("id", "speaker")
+        out_dir = headshots_dir / spk_id
+        existing_headshot = out_dir / "headshot.png"
+
+        if existing_headshot.exists():
+            print(f"  [headshots] {spk_id}: using cached {existing_headshot}")
+            headshot_paths.append(existing_headshot)
+            continue
+
+        frames = speaker.get("frames") or []
+        refs: list[Path] = []
+        for f in frames:
+            if len(refs) >= 3:
+                break
+            if f.get("crop_path"):
+                refs.append(Path(f["crop_path"]))
+            elif f.get("frame_path"):
+                refs.append(Path(f["frame_path"]))
+
+        if not refs:
+            print(f"  [headshots] {spk_id}: no reference frames, skipping")
+            continue
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        print(f"  [headshots] {spk_id}: generating from {len(refs)} refs...")
+        shots = generate_headshot(
+            refs,
+            output_dir=out_dir,
+            output_name="headshot.png",
+            use_cache=True,
+        )
+        if shots:
+            headshot_paths.append(shots[0])
+            print(f"  [headshots] {spk_id}: saved {shots[0]}")
+        else:
+            print(f"  [headshots] {spk_id}: generation failed")
+
+    if len(headshot_paths) < 2:
+        print("\nError: Need at least 2 headshots for composition. Exiting.")
+        return
+
+    print(f"\n[info] Generated {len(headshot_paths)} headshots")
+
+    # Prompt for title text
+    print("\n[step 3/3] Thumbnail composition")
+    title_text = input("Enter title text for thumbnail: ").strip()
+    if not title_text:
+        print("No title provided. Exiting.")
+        return
+
+    print(f"\n[compose] Creating thumbnail with: \"{title_text}\"")
+    thumb_path = compose_thumbnail(
+        background=None,
+        headshots=headshot_paths[:2],
+        text=title_text,
+        template="diary_ceo",
+        use_cache=True,
+    )
+    print("\n=== Done! ===")
+    print(f"Thumbnail saved to: {thumb_path}\n")
+
+
+if __name__ == "__main__":
+    run()
