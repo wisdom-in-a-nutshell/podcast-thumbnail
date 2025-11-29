@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
-from headshot_generation import generate_headshot
 from speaker_identification.frame_sampler import sample_frames as ffmpeg_sample_frames
 from speaker_identification.gemini_identify import identify_speakers
+from headshot_generation import generate_headshot
 
 
 def sample_frames(video_path: Path, timestamps: Iterable[float]) -> List[Path]:
