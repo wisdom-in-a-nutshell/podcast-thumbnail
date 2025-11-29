@@ -12,6 +12,7 @@ from speaker_identification.gemini_identify import identify_speakers
 from speaker_identification.cropper import crop_frame
 from headshot_generation import generate_headshot
 from thumbnail_composition import compose_thumbnail as compose_with_gemini
+import shutil
 
 
 def sample_frames(video_path: Path, timestamps: Iterable[float]) -> List[Path]:
@@ -146,3 +147,95 @@ def compose_thumbnail(
         highlight_words=highlight_words,
         jitter=jitter,
     )
+
+
+def run_end_to_end(
+    *,
+    video_path: Path,
+    title: str,
+    sample_model: str = "gemini-3-pro-preview",
+    headshot_model: str | None = None,
+    compose_model: str | None = None,
+    manifest_path: Path,
+    frames_dir: Path,
+    headshots_dir: Path,
+    timestamps_per_speaker: int = 4,
+    template: str = "diary_ceo",
+    aspect_ratio: str = "16:9",
+    api_key: str | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Run sample -> headshots -> compose. Returns summary dict."""
+
+    summary: dict[str, Any] = {"steps": []}
+
+    print(f"[sample] starting (model={sample_model})")
+    sample_result = extract_frames_with_gemini(
+        video_path=video_path,
+        video_url=None,
+        model=sample_model,
+        out_manifest=manifest_path,
+        frames_dir=frames_dir,
+        timestamps_per_speaker=timestamps_per_speaker,
+        dry_run=dry_run,
+        api_key=api_key,
+    )
+    print(f"[sample] done -> {manifest_path}")
+    summary["manifest"] = manifest_path
+    summary["steps"].append("sample")
+
+    if dry_run:
+        return summary
+
+    # Generate headshots per speaker
+    headshot_paths: list[Path] = []
+    for speaker in sample_result.get("speakers", []):
+        spk_id = speaker.get("id", "speaker")
+        frames = speaker.get("frames") or []
+        print(f"[headshots] speaker {spk_id}: {len(frames)} frame entries")
+        # prefer crops, fall back to frames; max 4
+        refs: list[Path] = []
+        for f in frames:
+            if len(refs) >= 4:
+                break
+            if f.get("crop_path"):
+                refs.append(Path(f["crop_path"]))
+            elif f.get("frame_path"):
+                refs.append(Path(f["frame_path"]))
+        if not refs:
+            continue
+        out_dir = headshots_dir / spk_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[headshots] speaker {spk_id}: generating from {len(refs)} refs -> {out_dir}")
+        shots = generate_headshot(
+            refs,
+            model=headshot_model,
+            output_dir=out_dir,
+            api_key=api_key,
+            use_cache=True,
+        )
+        if not shots:
+            raise RuntimeError(f"Headshot model returned no images for speaker {spk_id}")
+        headshot_paths.append(shots[0])
+        print(f"[headshots] speaker {spk_id}: saved {shots[0]}")
+    summary["headshots"] = [str(p) for p in headshot_paths]
+    summary["steps"].append("headshots")
+
+    if len(headshot_paths) < 2:
+        summary["warning"] = "Need at least two headshots for compose"
+        return summary
+
+    print(f"[compose] using {headshot_paths[:2]} template={template}")
+    thumb_path = compose_thumbnail(
+        background=None,
+        headshots=headshot_paths[:2],
+        text=title,
+        template=template,
+        model=compose_model,
+        aspect_ratio=aspect_ratio,
+        use_cache=True,
+    )
+    print(f"[compose] done -> {thumb_path}")
+    summary["thumbnail"] = str(thumb_path)
+    summary["steps"].append("compose")
+    return summary

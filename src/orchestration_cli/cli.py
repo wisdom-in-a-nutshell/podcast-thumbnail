@@ -13,6 +13,7 @@ from headshot_generation.gemini_client import _load_env_key
 from thumbnail_composition.gemini_composer import DEFAULT_MODEL as DEFAULT_COMPOSE_MODEL
 from . import __version__
 from .pipeline import compose_thumbnail, create_headshots, extract_frames_with_gemini
+from .pipeline import run_end_to_end
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -101,6 +102,42 @@ def build_parser() -> argparse.ArgumentParser:
         "--highlight", nargs="+", default=None, help="Words/phrases to force highlight in red boxes"
     )
 
+    run = sub.add_parser("run", help="End-to-end: sample -> headshots -> compose")
+    run.add_argument("--video", type=Path, required=True, help="Path to local video file")
+    run.add_argument("--title", help="Title text for thumbnail (prompted if omitted)")
+    run.add_argument("--sample-model", default="gemini-3-pro-preview", help="Model for speaker ID")
+    run.add_argument("--headshot-model", default=None, help="Model for headshots (default: gemini-3-pro-image-preview)")
+    run.add_argument("--compose-model", default=None, help="Model for compose (default: gemini-3-pro-image-preview)")
+    run.add_argument(
+        "--out-thumb",
+        type=Path,
+        default=Path("artifacts/thumbnails/thumb.png"),
+        help="Output thumbnail path",
+    )
+    run.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("artifacts/manifests/speakers.json"),
+        help="Speaker manifest path",
+    )
+    run.add_argument(
+        "--frames-dir",
+        type=Path,
+        default=Path("artifacts/frames"),
+        help="Directory to store frames/crops",
+    )
+    run.add_argument(
+        "--headshots-dir",
+        type=Path,
+        default=Path("artifacts/headshots"),
+        help="Directory to store generated headshots",
+    )
+    run.add_argument("--timestamps-per-speaker", type=int, default=4)
+    run.add_argument("--template", default="diary_ceo")
+    run.add_argument("--aspect-ratio", default="16:9")
+    run.add_argument("--api-key", default=None, help="API key override (else GEMINI_API_KEY/GOOGLE_API_KEY)")
+    run.add_argument("--dry-run", action="store_true", help="Skip API calls; print prompt only")
+
     return parser
 
 
@@ -162,6 +199,26 @@ def main() -> None:
             use_cache=not args.no_cache,
         )
         print(thumb)
+        return
+
+    if args.command == "run":
+        title = args.title or input("Enter title text: ")
+        summary = run_end_to_end(
+            video_path=args.video,
+            title=title,
+            sample_model=args.sample_model,
+            headshot_model=args.headshot_model,
+            compose_model=args.compose_model,
+            manifest_path=args.manifest,
+            frames_dir=args.frames_dir,
+            headshots_dir=args.headshots_dir,
+            timestamps_per_speaker=args.timestamps_per_speaker,
+            template=args.template,
+            aspect_ratio=args.aspect_ratio,
+            api_key=args.api_key,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(summary, indent=2))
         return
 
     parser.print_help()
