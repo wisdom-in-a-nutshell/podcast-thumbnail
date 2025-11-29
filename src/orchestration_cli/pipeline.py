@@ -238,10 +238,19 @@ def run_end_to_end(
     if dry_run:
         return summary
 
-    # Generate headshots per speaker
+    # Generate headshots per speaker (skip if already exists)
     headshot_paths: list[Path] = []
     for speaker in sample_result.get("speakers", []):
         spk_id = speaker.get("id", "speaker")
+        out_dir = headshots_dir / spk_id
+        existing_headshot = out_dir / "headshot.png"
+        
+        # Check if headshot already exists
+        if existing_headshot.exists():
+            print(f"[headshots] speaker {spk_id}: using existing {existing_headshot}")
+            headshot_paths.append(existing_headshot)
+            continue
+        
         frames = speaker.get("frames") or []
         print(f"[headshots] speaker {spk_id}: {len(frames)} frame entries")
         # prefer crops, fall back to frames; max 3
@@ -255,13 +264,13 @@ def run_end_to_end(
                 refs.append(Path(f["frame_path"]))
         if not refs:
             continue
-        out_dir = headshots_dir / spk_id
         out_dir.mkdir(parents=True, exist_ok=True)
         print(f"[headshots] speaker {spk_id}: generating from {len(refs)} refs -> {out_dir}")
         shots = generate_headshot(
             refs,
             model=headshot_model,
             output_dir=out_dir,
+            output_name="headshot.png",
             api_key=api_key,
             use_cache=True,
         )

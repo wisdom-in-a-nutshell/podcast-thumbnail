@@ -213,23 +213,28 @@ def compose_thumbnail(
         config=config,
     )
 
-    # Extract first image candidate
-    img_parts = []
+    # Extract first image candidate using BytesIO fallback (SDK as_image() is unreliable)
+    result_image: Image.Image | None = None
     for cand in getattr(response, "candidates", []):
         for part in getattr(cand.content, "parts", []) or []:
-            if getattr(part, "inline_data", None):
-                img_parts.append(part.as_image())
+            inline = getattr(part, "inline_data", None)
+            if inline and hasattr(inline, "data"):
+                result_image = Image.open(io.BytesIO(inline.data))
+                break
+        if result_image:
+            break
 
-    if not img_parts and hasattr(response, "parts"):
+    if result_image is None and hasattr(response, "parts"):
         for part in response.parts:
-            if getattr(part, "inline_data", None):
-                img_parts.append(part.as_image())
+            inline = getattr(part, "inline_data", None)
+            if inline and hasattr(inline, "data"):
+                result_image = Image.open(io.BytesIO(inline.data))
+                break
 
-    if not img_parts:
+    if result_image is None:
         raise RuntimeError("Thumbnail model returned no image content.")
 
-    image = img_parts[0]
-    image.save(final_path)
+    result_image.save(final_path)
     return final_path
 
 

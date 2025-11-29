@@ -198,22 +198,16 @@ def generate_headshot(
     out_dir = Path(output_dir) if output_dir else Path("artifacts/headshots")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    cache_hash = _cache_key(
-        model=model or DEFAULT_MODEL,
-        prompt=prompt or DEFAULT_PROMPT,
-        aspect_ratio=aspect_ratio,
-        image_size=image_size,
-        num_images=num_images,
-        crop_square=crop_square,
-        reference_paths=refs,
-    )
-
-    base_stem = Path(output_name).stem if output_name else f"{Path(refs[0]).stem}_headshot"
-    base_suffix = (Path(output_name).suffix or ".png") if output_name else ".png"
+    # Always use headshot.png as the output filename
+    base_name = Path(output_name).name if output_name else "headshot.png"
+    if not base_name.endswith((".png", ".jpg", ".jpeg")):
+        base_name = "headshot.png"
 
     def _fname(idx: int) -> str:
-        idx_part = f"_{idx}" if num_images > 1 else ""
-        return f"{base_stem}_{cache_hash[:10]}{idx_part}{base_suffix}"
+        if num_images > 1:
+            stem, suffix = base_name.rsplit(".", 1)
+            return f"{stem}_{idx}.{suffix}"
+        return base_name
 
     candidate_paths = [out_dir / _fname(i) for i in range(1, max(1, num_images) + 1)]
 
