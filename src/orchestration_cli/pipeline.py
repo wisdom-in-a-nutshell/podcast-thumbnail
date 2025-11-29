@@ -62,8 +62,9 @@ def extract_frames_with_gemini(
         for speaker in data.get("speakers", []):
             frames = speaker.get("frames") or []
             spk_id = speaker.get("id", "speaker")
-            spk_frame_dir = frames_dir / spk_id
-            spk_crop_dir = spk_frame_dir / "crops"
+            spk_root = frames_dir / spk_id
+            spk_frame_dir = spk_root / "frames"
+            spk_crop_dir = spk_root / "crops"
             spk_frame_dir.mkdir(parents=True, exist_ok=True)
             ts_list = [f.get("timestamp_s") for f in frames if isinstance(f, dict) and "timestamp_s" in f]
             extracted = ffmpeg_sample_frames(video_path, ts_list, spk_frame_dir)
@@ -128,6 +129,7 @@ def compose_thumbnail(
     use_cache: bool = True,
     output_path: Path | None = None,
     highlight_words: list[str] | None = None,
+    jitter: bool = False,
 ) -> Path:
     """Composite headshots and text using Gemini image model."""
 
@@ -142,4 +144,5 @@ def compose_thumbnail(
         use_cache=use_cache,
         output_path=output_path,
         highlight_words=highlight_words,
+        jitter=jitter,
     )

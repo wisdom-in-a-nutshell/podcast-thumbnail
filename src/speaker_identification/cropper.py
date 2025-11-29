@@ -29,43 +29,38 @@ def crop_frame(
 
     out_dir.mkdir(parents=True, exist_ok=True)
     img = Image.open(frame_path)
-    w, h = img.size
+    w_px, h_px = img.size
 
     x1 = max(0.0, min(1.0, float(bbox.get("x1", 0))))
-    y1 = max(0.0, min(1.0, float(bbox.get("y1", 0))))
     x2 = max(0.0, min(1.0, float(bbox.get("x2", 1))))
-    y2 = max(0.0, min(1.0, float(bbox.get("y2", 1))))
+    # Use full height irrespective of model y-bbox
+    y1, y2 = 0.0, 1.0
 
     if x2 <= x1 or y2 <= y1:
         raise ValueError("Invalid bbox coordinates")
 
-    # Expand bbox outward by padding fraction to include shoulders/upper torso
+    # Expand bbox outward horizontally; keep full vertical span
     pad_x = padding * (x2 - x1)
-    pad_y = padding * (y2 - y1)
     x1 = max(0.0, x1 - pad_x)
-    y1 = max(0.0, y1 - pad_y)
     x2 = min(1.0, x2 + pad_x)
-    y2 = min(1.0, y2 + pad_y)
 
     # Enforce minimum box size by expanding symmetrically around center
     cx = (x1 + x2) / 2
     cy = (y1 + y2) / 2
-    w = x2 - x1
-    h = y2 - y1
-    w = max(w, min_width)
-    h = max(h, min_height)
-    x1 = max(0.0, cx - w / 2)
-    x2 = min(1.0, cx + w / 2)
-    y1 = max(0.0, cy - h / 2)
-    y2 = min(1.0, cy + h / 2)
+    w_rel = x2 - x1
+    h_rel = 1.0  # full height
+    w_rel = max(w_rel, min_width)
+    x1 = max(0.0, cx - w_rel / 2)
+    x2 = min(1.0, cx + w_rel / 2)
+    y1, y2 = 0.0, 1.0
 
-    box = (int(x1 * w), int(y1 * h), int(x2 * w), int(y2 * h))
+    box = (int(x1 * w_px), int(y1 * h_px), int(x2 * w_px), int(y2 * h_px))
     crop = img.crop(box)
     if crop.size[0] <= 0 or crop.size[1] <= 0:
         raise ValueError("Empty crop")
     if crop.mode not in ("RGB", "RGBA"):
         crop = crop.convert("RGB")
 
-    out_path = out_dir / f"{frame_path.stem}_crop.png"
+    out_path = out_dir / f"{frame_path.stem}_crop{frame_path.suffix}"
     crop.save(out_path, format="PNG")
     return out_path
