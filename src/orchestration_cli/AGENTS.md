@@ -13,22 +13,20 @@ Purpose: provide a simple CLI that chains identification → headshots → compo
 - Exit codes and logs for each stage.
 
 ## Approach
-- CLI subcommands: `sample`, `headshots`, `compose`, plus a `run` that chains all.
-- `sample`: calls speaker_identification helpers to extract frames and manifest.
-- `headshots`: consumes frames manifest, calls headshot generator (or dry-run copies).
-- `compose`: consumes headshots manifest + text/background/template to render thumbnail.
-- Config: accept JSON/YAML configs; allow env overrides for model URLs/keys.
-- Logging: concise stdout logs; optional verbose mode. Keep artifacts/manifests in predictable folders.
+- CLI subcommands implemented: `sample` (stubs to Gemini speaker ID), `headshots` (Gemini 3 Pro Image Preview), `compose` (Gemini 3 Pro Image Preview two-up thumbnail).
+- Env loading: auto-load `.env` from repo/win/.env/cwd/home before commands; flags allow API key override.
+- Caching: headshots and compose both cache locally by hashed inputs to avoid repeat calls.
+- Outputs: headshots to `artifacts/headshots/`, thumbnails to `artifacts/thumbnails/`; manifests still TBD.
 
 ## Open Questions
-- Should `run` auto-clean temp files or keep all intermediates?
-- Preferred manifest schema and file locations?
-- Need parallelism or batching for model calls?
+- Should we add a `run` command to chain sample→headshots→compose with manifests?
+- Manifest schemas and locations for headshots/thumbnails?
+- Need parallelism/batching or retries around Gemini calls?
 
 ## Next Actions
-- Flesh out `podthumb` CLI with subcommands and wiring to pipeline stubs.
-- Define manifest schemas under `manifests/` (JSON examples) and ensure all agents reference them.
-- Add `--config` flag to load a single JSON/YAML file and `--dry-run` for headshots.
+- Define and write manifest schemas (speakers, headshots, thumbnails) so stages chain cleanly.
+- Add `run` command with optional dry-run, and a `--config` loader.
+- Optional: retry/backoff wrappers and verbose logging flags.
 
 ## If you take over this agent
 - Read top-level `AGENTS.md` plus each phase agent to align inputs/outputs.

@@ -48,7 +48,17 @@ def identify_speakers(
     parts = []
     if video_path:
         file_ref = client.files.upload(file=str(video_path))
-        parts.append(file_ref)
+        # Poll until ACTIVE
+        for _ in range(60):
+            status = client.files.get(name=file_ref.name)
+            if getattr(status, "state", "").upper() == "ACTIVE":
+                parts.append(status)
+                break
+            import time
+
+            time.sleep(1)
+        else:
+            raise GeminiIdentifyError(f"File {file_ref.name} not ACTIVE after wait")
     elif video_url:
         parts.append({"file_data": {"file_uri": video_url}})
 

@@ -33,7 +33,11 @@ def sample_frames(
             "-y",
             str(frame_path),
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            # Skip timestamps outside duration or other ffmpeg errors.
+            continue
         written.append(frame_path)
     return written
 

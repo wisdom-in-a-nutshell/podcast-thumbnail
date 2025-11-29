@@ -22,12 +22,25 @@ from headshot_generation.gemini_client import _load_env_key
 
 
 DEFAULT_MODEL = os.environ.get("PODTHUMB_COMPOSE_MODEL", "gemini-3-pro-image-preview")
+
+TEMPLATES = {
+    "diary_ceo": (
+        "Two speakers side by side, slight head tilt toward center, warm expressions."
+        " Dark/black backdrop with soft vignette. Bold white title centered; pick 1–2 key words to highlight"
+        " in red boxes with white text. No 'NEW' badge. No headphones/earbuds/hats."
+    ),
+    "clean_two_up": (
+        "Two-up interview layout, neutral gradient background, evenly lit faces, bold sans title with high contrast."
+    ),
+}
+
 DEFAULT_PROMPT = (
-    "You are designing a YouTube thumbnail. Keep the two provided people looking like their references."
-    " Place them side by side, shoulders-up, facing camera, evenly lit, no headphones/earbuds/hats."
-    " Use a clean neutral gradient background. Add the exact title text provided, big and readable,"
-    " centered above or between them in a bold sans font with high contrast outline. No extra objects,"
-    " no watermarks, no logos. 16:9 composition, polished and professional."
+    "You are designing a YouTube thumbnail. Keep the provided people looking like their references."
+    " Place them side by side, shoulders-up, facing camera, slight inward tilt, warm approachable expression,"
+    " remove headphones/earbuds/hats."
+    " Use a clean background appropriate to the chosen template. Add the exact title text provided; choose 1–2"
+    " important words to highlight with a red box and white text; ensure legibility on mobile."
+    " No extra stickers, no watermarks, no logos. 16:9 composition, polished and professional."
 )
 
 
@@ -38,9 +51,11 @@ def _cache_key(
     aspect_ratio: str,
     headshots: Sequence[Path],
     background: Path | None,
+    template: str,
+    style_reference: Path | None,
 ) -> str:
     hasher = hashlib.sha256()
-    for part in (model, title_text, aspect_ratio):
+    for part in (model, title_text, aspect_ratio, template):
         hasher.update(part.encode("utf-8"))
 
     for path in headshots:
@@ -53,6 +68,14 @@ def _cache_key(
 
     if background:
         p = Path(background)
+        hasher.update(p.name.encode("utf-8"))
+        try:
+            hasher.update(p.read_bytes())
+        except FileNotFoundError:
+            pass
+
+    if style_reference:
+        p = Path(style_reference)
         hasher.update(p.name.encode("utf-8"))
         try:
             hasher.update(p.read_bytes())
@@ -78,6 +101,8 @@ def compose_thumbnail(
     model: str | None = None,
     aspect_ratio: str = "16:9",
     use_cache: bool = True,
+    template: str = "diary_ceo",
+    style_reference: Path | None = None,
 ) -> Path:
     """Generate a composed thumbnail via Gemini using headshots and a title.
 
@@ -109,6 +134,8 @@ def compose_thumbnail(
         aspect_ratio=aspect_ratio,
         headshots=shots,
         background=background_path,
+        template=template,
+        style_reference=style_reference,
     )
 
     final_path = out_path.with_name(f"{out_path.stem}_{cache_hash[:10]}{out_path.suffix or '.png'}")
@@ -118,6 +145,8 @@ def compose_thumbnail(
     images: List[Image.Image] = [_load_image(Path(p)) for p in shots[:4]]  # limit refs
     if background_path:
         images.append(_load_image(Path(background_path)))
+    if style_reference:
+        images.append(_load_image(Path(style_reference)))
 
     client = genai.Client(api_key=api_key)
     config = types.GenerateContentConfig(
@@ -125,8 +154,9 @@ def compose_thumbnail(
         image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
     )
 
+    style_prompt = TEMPLATES.get(template, "")
     prompt = (
-        f"{DEFAULT_PROMPT} Title text to render: \"{title_text}\"."
+        f"{DEFAULT_PROMPT} {style_prompt} Title text to render: \"{title_text}\"."
         " Place the title cleanly and ensure both people remain clear and unoccluded."
     )
 

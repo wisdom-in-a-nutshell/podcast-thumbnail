@@ -96,4 +96,5 @@ def compose_thumbnail(background: Path, headshots: Iterable[Path], text: str) ->
         headshot_paths=list(headshots),
         title_text=text,
         background_path=background,
+        template="diary_ceo",
     )

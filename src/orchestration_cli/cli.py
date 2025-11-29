@@ -48,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory to store extracted frames",
     )
     sample.add_argument("--dry-run", action="store_true", help="Print prompt; do not call Gemini")
+    sample.add_argument("--force", action="store_true", help="Ignore existing manifest cache and re-run")
 
     headshots = sub.add_parser("headshots", help="Generate cleaned headshots from reference frames")
     headshots.add_argument("--frames", nargs="+", required=True, type=Path, help="Reference frame paths")
@@ -95,6 +96,8 @@ def build_parser() -> argparse.ArgumentParser:
     compose.add_argument("--aspect-ratio", default="16:9", help="Aspect ratio hint (e.g., 16:9 or 1:1)")
     compose.add_argument("--no-cache", action="store_true", help="Disable local compose cache")
     compose.add_argument("--api-key", default=None, help="API key override (else GEMINI_API_KEY/GOOGLE_API_KEY)")
+    compose.add_argument("--template", default="diary_ceo", help="Template style name")
+    compose.add_argument("--style-ref", type=Path, default=None, help="Optional style reference image")
 
     return parser
 
@@ -151,6 +154,8 @@ def main() -> None:
             background=args.background,
             headshots=args.headshots,
             text=args.text,
+            template=args.template,
+            style_reference=args.style_ref,
         )
         print(thumb)
         return
