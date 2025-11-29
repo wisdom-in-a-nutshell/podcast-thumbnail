@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import os
 import hashlib
+import time
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -28,6 +29,8 @@ DEFAULT_PROMPT = (
     " Neutral light-gray gradient background, no text or logos, no watermarks,"
     " remove clutter and artifacts."
 )
+MAX_RETRIES = 3
+RETRY_DELAY_S = 2
 MAX_REFERENCE_IMAGES = 14
 
 
@@ -114,8 +117,18 @@ def _extract_images(response) -> List[Image.Image]:
     images: List[Image.Image] = []
 
     for part in getattr(response, "parts", []) or []:
-        if getattr(part, "inline_data", None):
-            images.append(part.as_image())
+        inline = getattr(part, "inline_data", None)
+        if inline and hasattr(inline, "data") and inline.data:
+            # Prefer direct BytesIO loading for reliability
+            try:
+                images.append(Image.open(io.BytesIO(inline.data)))
+            except Exception:
+                # Fallback to as_image if BytesIO fails
+                if hasattr(part, "as_image"):
+                    try:
+                        images.append(part.as_image())
+                    except Exception:
+                        pass
 
     if not images and hasattr(response, "generated_images"):
         for img in response.generated_images:
@@ -128,7 +141,10 @@ def _extract_images(response) -> List[Image.Image]:
         for candidate in response.candidates:
             for part in getattr(candidate.content, "parts", []) or []:
                 if getattr(part, "inline_data", None):
-                    images.append(part.as_image())
+                    if hasattr(part, "as_image"):
+                        images.append(part.as_image())
+                    else:
+                        images.append(Image.open(io.BytesIO(part.inline_data.data)))
 
     return images
 
@@ -146,7 +162,6 @@ def generate_headshot(
     api_key: str | None = None,
     crop_square: bool = True,
     use_cache: bool = True,
-    timeout_s: int = 300,
 ) -> List[Path]:
     """Generate a cleaned headshot using Gemini 3 Pro Image Preview.
 
@@ -207,7 +222,7 @@ def generate_headshot(
 
     prepared_images = [_prepare_reference(Path(path), crop_square=crop_square) for path in refs]
 
-    client = genai.Client(api_key=api_key, http_options={"timeout": timeout_s})
+    client = genai.Client(api_key=api_key)
     config = types.GenerateContentConfig(
         response_modalities=["IMAGE"],
         image_config=types.ImageConfig(
@@ -215,20 +230,40 @@ def generate_headshot(
         ),
     )
 
-    response = client.models.generate_content(
-        model=model or DEFAULT_MODEL,
-        contents=[prompt or DEFAULT_PROMPT, *prepared_images],
-        config=config,
-    )
+    # Retry loop for transient API failures
+    images: List[Image.Image] = []
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        response = client.models.generate_content(
+            model=model or DEFAULT_MODEL,
+            contents=[prompt or DEFAULT_PROMPT, *prepared_images],
+            config=config,
+        )
 
-    # Detect blocking early
-    if getattr(response, "prompt_feedback", None) and getattr(response.prompt_feedback, "block_reason", None):
-        reason = response.prompt_feedback.block_reason
-        raise RuntimeError(f"Headshot request was blocked by the model: {reason}")
+        # Detect blocking early
+        if getattr(response, "prompt_feedback", None) and getattr(response.prompt_feedback, "block_reason", None):
+            reason = response.prompt_feedback.block_reason
+            raise RuntimeError(f"Headshot request was blocked by the model: {reason}")
 
-    images = _extract_images(response)
+        images = _extract_images(response)
+        if images:
+            break  # Success
+
+        # No images returned - prepare error info for potential retry
+        feedback = getattr(response, "prompt_feedback", None)
+        reason = getattr(feedback, "block_reason", None) if feedback else None
+        cand_count = len(getattr(response, "candidates", []) or [])
+        parts_count = sum(len(getattr(c.content, "parts", []) or []) for c in (getattr(response, "candidates", []) or []))
+        last_error = RuntimeError(
+            f"Headshot model returned no images. block_reason={reason} resp_id={getattr(response, 'response_id', None)} "
+            f"candidates={cand_count} parts={parts_count}"
+        )
+
+        if attempt < MAX_RETRIES:
+            time.sleep(RETRY_DELAY_S * attempt)  # Exponential backoff
+
     if not images:
-        raise RuntimeError("Headshot model returned no images.")
+        raise last_error or RuntimeError("Headshot generation failed after retries")
 
     paths: List[Path] = []
     for idx, image in enumerate(images, start=1):
