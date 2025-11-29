@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podcast-thumbnail"
+version = "0.1.0"
+description = "Utilities for extracting headshots and composing podcast thumbnails."
+authors = [{ name = "Adi" }]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.7",
+]
+
+[project.scripts]
+podthumb = "podcast_thumbnail.cli:main"
