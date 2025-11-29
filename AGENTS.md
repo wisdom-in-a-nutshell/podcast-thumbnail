@@ -6,9 +6,15 @@ This repo builds a simple pipeline to produce podcast thumbnails from an edited 
 1) Sample video frames (via ffmpeg) per speaker/timestamp. 2) Generate clean headshots (Gemini Nano Banana Pro / Gemini 3 Pro as external API). 3) Compose a thumbnail (headshots + background + short text) at YouTube-friendly dimensions.
 
 ## Current State
-- Python package scaffold in `src/podcast_thumbnail/` with CLI stub `podthumb` and placeholder pipeline functions.
+- Python scaffold in `src/` with subpackages for `orchestration_cli`, `speaker_identification`, `headshot_generation`, `thumbnail_composition`. CLI stub `podthumb` lives in `orchestration_cli/cli.py`; pipeline stubs in `orchestration_cli/pipeline.py`.
 - No real logic yet; ffmpeg/headshot/compositor are NotImplemented.
 - MCP: Gemini docs MCP installed (disabled by default), Context7 available; use `codex-gemini` alias to enable both + web search.
+
+## Per-Agent Guides (paths)
+- Speaker identification: `src/speaker_identification/AGENTS.md`
+- Headshot generation: `src/headshot_generation/AGENTS.md`
+- Thumbnail composition: `src/thumbnail_composition/AGENTS.md`
+- Orchestration/CLI: `src/orchestration_cli/AGENTS.md`
 
 ## Environment & Tools
 - Use Python 3.11 venv + pip (keep it simple). Install: `python3 -m venv .venv && source .venv/bin/activate && python3 -m pip install -e .[dev]`.

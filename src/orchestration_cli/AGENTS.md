@@ -1,6 +1,6 @@
 # Agent: Orchestration & CLI
 
-Purpose: provide a simple CLI that chains identification → headshots → composition, manages config, and produces manifests. See top-level `AGENTS.md` for environment/tooling, and the three phase agents for contract details.
+Purpose: provide a simple CLI that chains identification → headshots → composition, manages config, and produces manifests. See top-level `AGENTS.md` for project scope/environment/tooling, and the three phase agents for contract details.
 
 ## Inputs
 - Video path.

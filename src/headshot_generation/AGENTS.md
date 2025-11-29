@@ -1,6 +1,6 @@
 # Agent: Headshot Generation
 
-Purpose: take representative frames per speaker and produce clean headshot images (ideally transparent background) using the external headshot model (Gemini Nano Banana Pro / Gemini 3 Pro pipeline). See top-level `AGENTS.md` for overall context and tooling.
+Purpose: take representative frames per speaker and produce clean headshot images (ideally transparent background) using the external headshot model (Gemini Nano Banana Pro / Gemini 3 Pro pipeline). See top-level `AGENTS.md` for overall scope, context, and tooling.
 
 ## Inputs
 - Frame paths per speaker (from speaker_identification manifest).
@@ -21,11 +21,11 @@ Purpose: take representative frames per speaker and produce clean headshot image
 - Should we store intermediates and retries, or only the best headshot per speaker?
 
 ## Next Actions
-- Implement `create_headshots(frame_paths)` stub to call external model; accept a dry-run mode that just copies/crops inputs.
+- Implement `create_headshots(frame_paths)` in `orchestration_cli/pipeline.py` (or a dedicated helper) to call external model; accept a dry-run mode that just copies/crops inputs.
 - Add CLI `podthumb headshots --frames-manifest ... --outdir ... --dry-run`.
 - Write manifest `manifests/headshots.json` linking speaker IDs to headshot paths and source frames.
 
 ## If you take over this agent
-- Read top-level `AGENTS.md` and `agents/speaker_identification/AGENTS.md` to align on manifests.
+- Read top-level `AGENTS.md` and `speaker_identification/AGENTS.md` to align on manifests.
 - Keep inputs from `manifests/speakers.json`; outputs under `artifacts/headshots/` and `manifests/headshots.json`.
 - Document the exact API contract once known; keep a mock/dry-run path for offline use.

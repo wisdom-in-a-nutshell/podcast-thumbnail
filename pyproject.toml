@@ -8,7 +8,11 @@ version = "0.1.0"
 description = "Utilities for extracting headshots and composing podcast thumbnails."
 authors = [{ name = "Adi" }]
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "pillow>=10.4",
+    "google-genai>=1.44.0",
+    "click>=8.1",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -17,4 +21,7 @@ dev = [
 ]
 
 [project.scripts]
-podthumb = "podcast_thumbnail.cli:main"
+podthumb = "orchestration_cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

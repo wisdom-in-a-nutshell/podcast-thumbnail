@@ -1,6 +1,6 @@
 # Agent: Thumbnail Composition
 
-Purpose: combine headshots, background, and short text into a final thumbnail asset. See top-level `AGENTS.md` for context and tooling.
+Purpose: combine headshots, background, and short text into a final thumbnail asset. See top-level `AGENTS.md` for project scope, context, and tooling.
 
 ## Inputs
 - Headshot images per speaker (PNG preferred).
@@ -25,11 +25,11 @@ Purpose: combine headshots, background, and short text into a final thumbnail as
 - Need mobile-safe variants (e.g., square 1080x1080)?
 
 ## Next Actions
-- Implement `compose_thumbnail(background, headshots, text)` using Pillow.
+- Implement `compose_thumbnail(background, headshots, text)` in `orchestration_cli/pipeline.py` (or a dedicated helper) using Pillow.
 - Add CLI `podthumb compose --headshots ... --text "..." --background ... --out thumb.png --template template.json`.
 - Define template JSON structure (positions, sizes, font, colors) under `templates/`.
 
 ## If you take over this agent
-- Read top-level `AGENTS.md` and `agents/headshot_generation/AGENTS.md` to align inputs.
+- Read top-level `AGENTS.md` and `headshot_generation/AGENTS.md` to align inputs.
 - Expect headshot manifest at `manifests/headshots.json`; write outputs to `artifacts/thumbnails/`.
 - Keep at least one default template and font bundled or documented.

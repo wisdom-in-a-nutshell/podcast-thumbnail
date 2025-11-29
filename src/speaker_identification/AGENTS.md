@@ -22,7 +22,7 @@ Purpose: determine how many speakers are present, map them to stable IDs, and ca
 - Any privacy constraints on storing frames?
 
 ## Next Actions
-- Implement `sample_frames(video_path, timestamps)` in `pipeline.py` using ffmpeg subprocess.
+- Implement `sample_frames(video_path, timestamps)` in `orchestration_cli/pipeline.py` using ffmpeg subprocess.
 - Add a face-detect/cluster helper to produce `manifests/speakers.json` with stable IDs.
 - Wire a CLI subcommand `podthumb sample --video ... --timestamps ... --outdir ...`.
 
