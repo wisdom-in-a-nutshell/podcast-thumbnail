@@ -33,8 +33,14 @@ TEMPLATES = {
         " Keep minimal empty space under the title; keep clear padding above and below the text block; avoid large blank gaps." 
         " No 'NEW' badge. No headphones/earbuds/hats."
     ),
-    "clean_two_up": (
-        "Two-up interview layout, neutral gradient background, evenly lit faces, bold sans title with high contrast."
+    "single_speaker": (
+        "ONLY ONE PERSON in this thumbnail. Do NOT show two people. Show exactly one person."
+        " Place the single speaker on the LEFT half of the frame, shoulders-up, facing camera, warm approachable expression."
+        " The person fills the entire left 50% of the image. Dark/black vignette backdrop."
+        " The RIGHT half is ONLY for the title text: large, bold, white text filling the right side."
+        " Words wrapped in *asterisks* get a red box highlight with white text."
+        " Title should be big and impactful, easy to read on mobile. No headphones/earbuds/hats."
+        " 16:9 composition, polished and professional. Remember: ONLY ONE PERSON, not two."
     ),
 }
 
@@ -123,8 +129,8 @@ def compose_thumbnail(
     """
 
     shots = list(headshot_paths)
-    if len(shots) < 2:
-        raise ValueError("Provide at least two headshots for composition.")
+    if len(shots) < 1:
+        raise ValueError("Provide at least one headshot for composition.")
 
     _load_env_key()
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")

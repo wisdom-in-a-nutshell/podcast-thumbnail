@@ -388,16 +388,34 @@ def run() -> None:
         print("No title provided. Exiting.")
         return
 
-    print(f"\n[compose] Creating thumbnail with: \"{title_text}\"")
-    thumb_path = compose_thumbnail(
+    print(f"\n[compose] Creating thumbnails with: \"{title_text}\"")
+    
+    # Style 1: diary_ceo (two speakers, title at top)
+    print("\n  [style 1/2] diary_ceo (two speakers, title at top)...")
+    thumb1 = compose_thumbnail(
         background=None,
         headshots=headshot_paths[:2],
         text=title_text,
         template="diary_ceo",
+        output_path=Path("artifacts/thumbnails/thumb_diary_ceo.png"),
         use_cache=True,
     )
+    print(f"  -> {thumb1}")
+    
+    # Style 2: single_speaker (speaker_1 only, text on right)
+    print("  [style 2/2] single_speaker (one person left, text right)...")
+    thumb2 = compose_thumbnail(
+        background=None,
+        headshots=[headshot_paths[0]],  # only one headshot
+        text=title_text,
+        template="single_speaker",
+        output_path=Path("artifacts/thumbnails/thumb_single_speaker.png"),
+        use_cache=True,
+    )
+    print(f"  -> {thumb2}")
+    
     print("\n=== Done! ===")
-    print(f"Thumbnail saved to: {thumb_path}\n")
+    print(f"Generated 2 thumbnails in artifacts/thumbnails/\n")
 
 
 if __name__ == "__main__":
