@@ -15,3 +15,11 @@ Barebones Python package scaffold for a podcast thumbnail pipeline.
 ## License
 
 MIT
+
+## Auto push helper
+
+For rapid checkpoints, run `./scripts/auto_commit_push.sh [branch] [commit message]` (defaults to current branch and a timestamped message). Example cron every 15 minutes:
+
+```
+*/15 * * * * /Users/adi/GitHub/podcast-thumbnail/scripts/auto_commit_push.sh main >> /tmp/podthumb-autopush.log 2>&1
+```
